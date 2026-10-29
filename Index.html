@@ -1,0 +1,427 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import { 
+  Search, Heart, MessageCircle, ShoppingCart, Repeat, 
+  User, Home, Send, Star, ShieldCheck, LogOut, PlusCircle, Filter
+} from "lucide-react";
+
+// ==========================================
+// 1. TIPOS Y DATOS SIMULADOS (MOCK DB)
+// ==========================================
+type UserType = {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  reputation: number;
+  sales: number;
+  trades: number;
+  bio: string;
+};
+
+type ListingType = {
+  id: string;
+  cardName: string;
+  expansion: string;
+  rarity: string;
+  condition: string;
+  price: number | null; // null si es solo intercambio
+  type: "VENTA" | "INTERCAMBIO" | "AMBOS";
+  image: string;
+  sellerId: string;
+};
+
+type PostType = {
+  id: string;
+  userId: string;
+  content: string;
+  image?: string;
+  likes: number;
+  comments: number;
+  timestamp: string;
+};
+
+type MessageType = {
+  id: string;
+  senderId: string;
+  text: string;
+  timestamp: string;
+  isOffer?: boolean;
+  offerAmount?: number;
+};
+
+const MOCK_USERS: Record<string, UserType> = {
+  "u1": { id: "u1", name: "Ash Ketchum", email: "ash@pokemon.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ash", reputation: 4.8, sales: 42, trades: 15, bio: "Coleccionista de 1ra edición. Solo tratos serios." },
+  "u2": { id: "u2", name: "Misty Waterflower", email: "misty@pokemon.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Misty", reputation: 4.9, sales: 120, trades: 5, bio: "Vendo cartas de tipo agua y psicico." }
+};
+
+const MOCK_LISTINGS: ListingType[] = [
+  { id: "l1", cardName: "Charizard", expansion: "Base Set", rarity: "Holo Rara", condition: "Near Mint", price: 1500, type: "VENTA", image: "https://images.pokemontcg.io/base1/4_hires.png", sellerId: "u2" },
+  { id: "l2", cardName: "Pikachu", expansion: "Base Set", rarity: "Común", condition: "Mint", price: null, type: "INTERCAMBIO", image: "https://images.pokemontcg.io/base1/58_hires.png", sellerId: "u1" },
+  { id: "l3", cardName: "Mewtwo", expansion: "Base Set", rarity: "Holo Rara", condition: "Excellent", price: 300, type: "AMBOS", image: "https://images.pokemontcg.io/base1/10_hires.png", sellerId: "u2" },
+];
+
+const MOCK_POSTS: PostType[] = [
+  { id: "p1", userId: "u2", content: "¡Acabo de conseguir este Charizard! 🎉 #PokéTrade", image: "https://images.pokemontcg.io/base1/4_hires.png", likes: 24, comments: 5, timestamp: "Hace 2h" },
+  { id: "p2", userId: "u1", content: "Busco intercambiar mi Blastoise por un Alakazam. ¿Alguien?", likes: 8, comments: 12, timestamp: "Hace 5h" }
+];
+
+// ==========================================
+// 2. COMPONENTE PRINCIPAL (SIMULACIÓN MVP)
+// ==========================================
+export default function PokeTradeApp() {
+  // Estado Global Simulado
+  const [user, setUser] = useState<UserType | null>(null);
+  const [activeTab, setActiveTab] = useState<"market" | "trades" | "social" | "chat" | "profile">("market");
+  const [listings, setListings] = useState<ListingType[]>(MOCK_LISTINGS);
+  const [posts, setPosts] = useState<PostType[]>(MOCK_POSTS);
+  const [chatMessages, setChatMessages] = useState<MessageType[]>([
+    { id: "m1", senderId: "u2", text: "Hola, ¿sigue disponible el Mewtwo?", timestamp: "10:00 AM" },
+    { id: "m2", senderId: "u1", text: "Sí, ¿qué me ofreces?", timestamp: "10:05 AM" }
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Efecto para scroll automático en chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  // --- Acciones Simuladas ---
+  const handleLogin = () => setUser(MOCK_USERS["u1"]);
+  const handleLogout = () => { setUser(null); setActiveTab("market"); };
+  
+  const handleLike = (postId: string) => {
+    setPosts(posts.map(p => p.id === postId ? { ...p, likes: p.likes + 1 } : p));
+  };
+
+  const handleSendMessage = () => {
+    if (!chatInput.trim()) return;
+    const newMsg: MessageType = { id: Date.now().toString(), senderId: user!.id, text: chatInput, timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) };
+    setChatMessages([...chatMessages, newMsg]);
+    setChatInput("");
+    
+    // Simular respuesta en tiempo real del otro usuario
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, { 
+        id: (Date.now() + 1).toString(), 
+        senderId: "u2", 
+        text: "¡Me parece bien! Te envío una oferta formal por el chat.", 
+        timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        isOffer: true,
+        offerAmount: 280
+      }]);
+    }, 1500);
+  };
+
+  const handleMakeOffer = (listingId: string, amount: number) => {
+    alert(`✅ Oferta de $${amount} enviada al vendedor. Se ha abierto un chat de negociación.`);
+    setActiveTab("chat");
+    setChatMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      senderId: user!.id,
+      text: `He enviado una oferta formal de $${amount} por esta carta.`,
+      timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+      isOffer: true,
+      offerAmount: amount
+    }]);
+  };
+
+  // ==========================================
+  // 3. VISTAS DE LA APLICACIÓN
+  // ==========================================
+  
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+        <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl border-t-4 border-red-600">
+          <div className="flex justify-center mb-6">
+            <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center border-4 border-yellow-400 shadow-lg">
+              <span className="text-white font-black text-3xl">P</span>
+            </div>
+          </div>
+          <h1 className="text-3xl font-black text-center text-slate-900 mb-2">PokéTrade</h1>
+          <p className="text-gray-500 text-center mb-8">Compra, vende e intercambia cartas coleccionables.</p>
+          
+          <button onClick={handleLogin} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all mb-4">
+            <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M12.545 10.239v3.821h5.445c-.712 2.315-2.647 3.972-5.445 3.972a6.033 6.033 0 1 1 0-12.064 5.963 5.963 0 0 1 4.297 1.785l2.956-2.956A10.033 10.033 0 1 0 12.545 20c5.523 0 10.033-4.51 10.033-10.033 0-.88-.11-1.734-.315-2.545H12.545z"/></svg>
+            Continuar con Google
+          </button>
+          <button onClick={handleLogin} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-3 px-4 rounded-xl transition-all">
+            Correo y Contraseña
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto border-x border-slate-200 shadow-2xl relative">
+      {/* HEADER */}
+      <header className="bg-slate-900 text-white p-4 sticky top-0 z-10 flex justify-between items-center shadow-md">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center border-2 border-yellow-400">
+            <span className="text-white font-black text-sm">P</span>
+          </div>
+          <h1 className="font-black text-xl tracking-tight">PokéTrade</h1>
+        </div>
+        <button onClick={handleLogout} className="p-2 hover:bg-slate-800 rounded-full"><LogOut className="w-5 h-5 text-gray-400" /></button>
+      </header>
+
+      {/* CONTENIDO PRINCIPAL */}
+      <main className="flex-1 overflow-y-auto pb-20">
+        
+        {/* VISTA: MARKETPLACE */}
+        {activeTab === "market" && (
+          <div className="p-4 space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <input type="text" placeholder="Buscar Charizard, Base Set, Mint..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-500 bg-white" />
+              <button className="absolute right-2 top-2 p-1.5 bg-slate-100 rounded-lg"><Filter className="w-5 h-5 text-slate-600" /></button>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4">
+              {listings.map(listing => (
+                <div key={listing.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex gap-4">
+                  <div className="w-24 h-32 bg-slate-100 rounded-lg flex-shrink-0 relative overflow-hidden">
+                    <img src={listing.image} alt={listing.cardName} className="w-full h-full object-contain" />
+                    <span className="absolute top-1 right-1 bg-yellow-400 text-slate-900 text-[10px] font-bold px-1.5 py-0.5 rounded">{listing.rarity}</span>
+                  </div>
+                  <div className="flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg text-slate-900">{listing.cardName}</h3>
+                      <p className="text-sm text-gray-500">{listing.expansion} • {listing.condition}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                        <span className="text-sm font-medium text-slate-700">Vendedor: {MOCK_USERS[listing.sellerId].name}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-2xl font-black text-red-600">
+                        {listing.price ? `$${listing.price}` : "Intercambio"}
+                      </span>
+                      <div className="flex gap-2">
+                        <button className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><Heart className="w-5 h-5 text-slate-600" /></button>
+                        {listing.type !== "INTERCAMBIO" && (
+                          <button onClick={() => handleMakeOffer(listing.id, listing.price!)} className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-800">
+                            Comprar
+                          </button>
+                        )}
+                        {listing.type !== "VENTA" && (
+                          <button onClick={() => setActiveTab("chat")} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700">
+                            Ofertar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* VISTA: INTERCAMBIOS */}
+        {activeTab === "trades" && (
+          <div className="p-4 space-y-4">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white text-center shadow-lg">
+              <Repeat className="w-12 h-12 mx-auto mb-3 text-yellow-400" />
+              <h2 className="text-2xl font-black mb-2">Zona de Intercambio</h2>
+              <p className="text-blue-100 mb-4">Publica lo que tienes y lo que buscas. Negocia sin dinero de por medio.</p>
+              <button className="bg-yellow-400 text-slate-900 font-bold py-2 px-6 rounded-full hover:bg-yellow-300 transition-colors flex items-center gap-2 mx-auto">
+                <PlusCircle className="w-5 h-5" /> Crear Propuesta
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+              <div className="flex items-center gap-3 mb-4">
+                <img src={MOCK_USERS["u1"].avatar} className="w-10 h-10 rounded-full bg-slate-100" />
+                <div>
+                  <p className="font-bold text-slate-900">{MOCK_USERS["u1"].name}</p>
+                  <p className="text-xs text-gray-500">Hace 1 hora</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-green-50 p-3 rounded-xl border border-green-100">
+                  <p className="text-xs font-bold text-green-700 mb-2 uppercase tracking-wider">Tengo</p>
+                  <div className="flex flex-col items-center">
+                    <img src="https://images.pokemontcg.io/base1/58_hires.png" className="w-16 h-20 object-contain" />
+                    <span className="text-sm font-bold mt-1">Pikachu (Base Set)</span>
+                  </div>
+                </div>
+                <div className="bg-red-50 p-3 rounded-xl border border-red-100">
+                  <p className="text-xs font-bold text-red-700 mb-2 uppercase tracking-wider">Busco</p>
+                  <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-red-200 rounded-lg">
+                    <span className="text-sm font-bold text-red-600">Alakazam</span>
+                    <span className="text-xs text-gray-500">Cualquier expansión</span>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setActiveTab("chat")} className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800">
+                Proponer Intercambio
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* VISTA: RED SOCIAL (FEED) */}
+        {activeTab === "social" && (
+          <div className="p-4 space-y-6">
+            {posts.map(post => (
+              <div key={post.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-4 flex items-center gap-3">
+                  <img src={MOCK_USERS[post.userId].avatar} className="w-10 h-10 rounded-full bg-slate-100" />
+                  <div>
+                    <p className="font-bold text-slate-900">{MOCK_USERS[post.userId].name}</p>
+                    <p className="text-xs text-gray-500">{post.timestamp}</p>
+                  </div>
+                </div>
+                <p className="px-4 pb-3 text-slate-700">{post.content}</p>
+                {post.image && (
+                  <div className="bg-slate-100 flex justify-center p-4">
+                    <img src={post.image} className="max-h-64 object-contain rounded-lg shadow-md" />
+                  </div>
+                )}
+                <div className="p-4 border-t border-slate-100 flex items-center gap-6">
+                  <button onClick={() => handleLike(post.id)} className="flex items-center gap-2 text-gray-500 hover:text-red-600 transition-colors">
+                    <Heart className="w-5 h-5" /> <span className="font-medium">{post.likes}</span>
+                  </button>
+                  <button className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors">
+                    <MessageCircle className="w-5 h-5" /> <span className="font-medium">{post.comments}</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* VISTA: CHAT EN TIEMPO REAL */}
+        {activeTab === "chat" && (
+          <div className="flex flex-col h-[calc(100vh-140px)]">
+            <div className="bg-white p-4 border-b border-slate-100 flex items-center gap-3">
+              <img src={MOCK_USERS["u2"].avatar} className="w-10 h-10 rounded-full bg-slate-100" />
+              <div>
+                <p className="font-bold text-slate-900">{MOCK_USERS["u2"].name}</p>
+                <p className="text-xs text-green-600 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-green-500 rounded-full"></span> En línea
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+              {chatMessages.map((msg) => {
+                const isMe = msg.senderId === user.id;
+                return (
+                  <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${isMe ? "bg-red-600 text-white rounded-br-none" : "bg-white border border-slate-200 text-slate-900 rounded-bl-none shadow-sm"}`}>
+                      {msg.isOffer && (
+                        <div className={`mb-2 p-2 rounded-lg text-sm font-bold flex items-center gap-2 ${isMe ? "bg-red-700" : "bg-yellow-100 text-slate-900"}`}>
+                          <ShoppingCart className="w-4 h-4" /> Oferta: ${msg.offerAmount}
+                        </div>
+                      )}
+                      <p className="text-sm">{msg.text}</p>
+                      <p className={`text-[10px] mt-1 text-right ${isMe ? "text-red-200" : "text-gray-400"}`}>{msg.timestamp}</p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={chatEndRef} />
+            </div>
+
+            <div className="p-3 bg-white border-t border-slate-200 flex gap-2">
+              <input 
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                placeholder="Escribe un mensaje o una oferta..." 
+                className="flex-1 bg-slate-100 rounded-full px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+              <button onClick={handleSendMessage} className="bg-red-600 text-white p-3 rounded-full hover:bg-red-700 transition-colors">
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* VISTA: PERFIL DE USUARIO */}
+        {activeTab === "profile" && (
+          <div className="p-4 space-y-6">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-center">
+              <div className="relative inline-block">
+                <img src={user.avatar} className="w-24 h-24 rounded-full bg-slate-100 mx-auto border-4 border-yellow-400" />
+                <div className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full border-2 border-white">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 mt-3">{user.name}</h2>
+              <p className="text-gray-500 text-sm mb-4">{user.bio}</p>
+              
+              <div className="flex justify-center gap-6 py-4 border-t border-b border-slate-100">
+                <div className="text-center">
+                  <p className="text-2xl font-black text-slate-900">{user.reputation}</p>
+                  <p className="text-xs text-gray-500 uppercase font-bold">Reputación</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-black text-slate-900">{user.sales}</p>
+                  <p className="text-xs text-gray-500 uppercase font-bold">Ventas</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-black text-slate-900">{user.trades}</p>
+                  <p className="text-xs text-gray-500 uppercase font-bold">Trades</p>
+                </div>
+              </div>
+              
+              <div className="mt-4 flex gap-2 justify-center">
+                <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-3 py-1 rounded-full">Top Trader</span>
+                <span className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">Verificado</span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-bold text-slate-900 mb-3 px-1">Mi Colección a la Venta</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {listings.filter(l => l.sellerId === user.id).map(l => (
+                  <div key={l.id} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                    <img src={l.image} className="w-full h-24 object-contain mb-2" />
+                    <p className="font-bold text-sm truncate">{l.cardName}</p>
+                    <p className="text-red-600 font-black text-sm">{l.price ? `$${l.price}` : "Trade"}</p>
+                  </div>
+                ))}
+                <button className="border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-gray-400 hover:border-red-500 hover:text-red-500 transition-colors min-h-[120px]">
+                  <PlusCircle className="w-8 h-8 mb-1" />
+                  <span className="text-xs font-bold">Agregar Carta</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* BARRA DE NAVEGACIÓN INFERIOR */}
+      <nav className="bg-white border-t border-slate-200 px-6 py-3 flex justify-between items-center sticky bottom-0 z-10">
+        <button onClick={() => setActiveTab("market")} className={`flex flex-col items-center gap-1 ${activeTab === "market" ? "text-red-600" : "text-gray-400 hover:text-slate-600"}`}>
+          <ShoppingCart className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Market</span>
+        </button>
+        <button onClick={() => setActiveTab("trades")} className={`flex flex-col items-center gap-1 ${activeTab === "trades" ? "text-red-600" : "text-gray-400 hover:text-slate-600"}`}>
+          <Repeat className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Trades</span>
+        </button>
+        <button onClick={() => setActiveTab("social")} className={`flex flex-col items-center gap-1 ${activeTab === "social" ? "text-red-600" : "text-gray-400 hover:text-slate-600"}`}>
+          <Home className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Feed</span>
+        </button>
+        <button onClick={() => setActiveTab("chat")} className={`flex flex-col items-center gap-1 relative ${activeTab === "chat" ? "text-red-600" : "text-gray-400 hover:text-slate-600"}`}>
+          <MessageCircle className="w-6 h-6" />
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center">2</span>
+          <span className="text-[10px] font-bold">Chat</span>
+        </button>
+        <button onClick={() => setActiveTab("profile")} className={`flex flex-col items-center gap-1 ${activeTab === "profile" ? "text-red-600" : "text-gray-400 hover:text-slate-600"}`}>
+          <User className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Perfil</span>
+        </button>
+      </nav>
+    </div>
+  );
+}
